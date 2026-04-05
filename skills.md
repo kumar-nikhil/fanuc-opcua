@@ -36,10 +36,32 @@ By default, they exist in `ns=1`. Since they are mapped as array types, you shou
 
 *Note: Since these Modbus structures are large arrays, it is heavily recommended to use partial reads using the `IndexRange` argument in `asyncua` to avoid performance bottlenecks.*
 
-## Implementation Approach
-When implementing an `asyncua` based client for Fanuc:
+---
 
-1. **Connection URL**: Use `opc.tcp://<ROBOT_IP>:4880/FANUC/NanoUaServer`. (On RoboGuide, it's `127.0.0.1:4880`).
-2. **Library**: Use python's `asyncua` standard library.
-3. **Data Polling vs Subscriptions**: Fanuc supports MonitoredItems (Publish/Subscribe) with a minimum sampling interval of 100ms. For array elements from the Modbus namespace, partial `DataAccess` (DA) reading via `IndexRange` is preferred.
-4. **Data Wrapping**: Expose a clear, object-oriented API in Python so users don't have to concern themselves with string namespace identifiers and just call methods like `.get_alarms()`, `.read_register(1)`.
+## Developer Usage Guide
+
+Instead of manually navigating the trees with hardcoded OPC commands, the `fanuc-opcua` wrapper handles mapping automatically. When maintaining or extending our codebase, utilize the abstraction API directly rather than the raw library:
+
+### Interacting via Python
+
+**Initialization:**
+```python
+from fanuc_opcua import FanucClient
+client = FanucClient("ip.address.here")
+```
+
+**Namespace 2 Handling (Robot Info):**
+The `robot_info` module dynamically reads explicit nodes.
+```python
+alarms_list = await client.robot_info.get_active_alarms()
+uptime_string = await client.robot_info.get_uptime()
+```
+
+**Namespace 1 Handling (Discrete Logic):**
+The `io` module pulls full blocks of Modbus arrays and slices appropriately for one-indexed arrays matching the FANUC UI indices.
+```python
+is_do_5_on = await client.io.get_digital_output(5) # Returns boolean for DO[5]
+```
+
+### Implementing Future Slicing logic
+If we must implement HoldingRegisters in the future (`PR` and `R`), the method involves translating Fanuc's `$SNPX_ASG` setup definitions back into python `HoldingRegisters[ns=1;i=304]` index ranges! Be careful with Real vs Signed Int casts across those address offsets.
