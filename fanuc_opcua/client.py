@@ -3,6 +3,7 @@ import logging
 
 from .features.robot_info import RobotInfo
 from .features.registers import Registers
+from .features.io import IO
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class FanucClient:
         # Attach feature wrappers
         self.robot_info = RobotInfo(self._client)
         self.registers = Registers(self._client)
+        self.io = IO(self._client)
 
     async def connect(self):
         """Connects to the Fanuc OPC UA Server."""
