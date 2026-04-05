@@ -28,25 +28,30 @@ async def main():
         # 1. System Information
         model = await robot.robot_info.get_model()
         print(f"Connected to {model} robot!")
-        
-        version = await robot.robot_info.get_version()
-        print(f"Software Version: {version}")
 
         # 2. Operational State
         alarms = await robot.robot_info.get_active_alarms()
         print(f"Active Alarms: {alarms}") # Cleanly filtered list
-        
-        mode = await robot.robot_info.get_mode_state()
-        print(f"Mode: {mode}")
 
         # 3. Position and Motion
         position_data = await robot.robot_info.get_position()
         print(f"Position (X, Y, Z, W, P, R): {position_data}")
 
-        # 4. Discrete Modbus I/O (DI/DO mapped natively)
-        # Check Digital Input [1] -> D[1]
-        is_active = await robot.io.get_digital_input(1) 
-        print(f"DI[1] active: {is_active}")
+        # 4. Extended Discrete Modbus I/O (DI/DO mapped natively)
+        # Supports DI, DO, RI, RO, UI, UO, SI, SO, Flags
+        is_ui_active = await robot.io.get_uop_input(1) 
+        print(f"UI[1] active: {is_ui_active}")
+        
+        # 5. Native Registers (Input/Holding)
+        gi_1 = await robot.registers.get_group_input(1)
+        print(f"GI[1]: {gi_1}")
+        
+        # Reading HoldingRegisters natively decodes standard INT16 Fanuc assignments
+        r_1 = await robot.registers.read_holding_register(1, "int16")
+        print(f"Numeric Register R[1]: {r_1}")
+        
+        # Supports reading user-mapped REALs seamlessly (combines two 16-bit registers natively)
+        # r_real = await robot.registers.read_holding_register(11, "real")
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -56,21 +61,21 @@ if __name__ == "__main__":
 
 ### `FanucClient.robot_info`
 Access to device-level Namespace 2 nodes:
-- `.get_model()` -> `str`
-- `.get_serial_number()` -> `str`
-- `.get_version()` -> `str`
-- `.get_active_alarms()` -> `list[str]`
-- `.get_servo_state()` -> `bool`
-- `.get_operation_state()` -> `int`
-- `.get_mode_state()` -> `int`
-- `.get_program_speed()` -> `int` 
-- `.get_uptime()` -> `str`
-- `.get_position()` -> `list[float]`
-- `.get_torque()` -> `list[float]`
+- `.get_model()`, `.get_version()`, `.get_serial_number()`
+- `.get_active_alarms()`, `.get_uptime()`, `.get_servo_state()`
+- `.get_operation_state()`, `.get_mode_state()`, `.get_program_speed()`
+- `.get_position()`, `.get_torque()`
 
 ### `FanucClient.io`
-Access to the discrete I/O structures (Namespace 1 Modbus mappings):
-- `.get_digital_input(index)` -> `bool`
-- `.get_digital_output(index)` -> `bool`
+Access to the discrete I/O structures (Namespace 1 Modbus mappings). *(Note: Index parameter natively matches Fanuc screen 1-based indices)*
+- **Digital**: `.get_digital_input(idx)`, `.get_digital_output(idx)`
+- **Robot**: `.get_robot_input(idx)`, `.get_robot_output(idx)`
+- **User Operator**: `.get_uop_input(idx)`, `.get_uop_output(idx)`
+- **System Operator**: `.get_sop_input(idx)`, `.get_sop_output(idx)`
+- **Flags**: `.get_flag(idx)`
 
-*(Note: Index numbers map strictly to Fanuc controller syntax, e.g. `index 1` resolves to `DI[1]`.)*
+### `FanucClient.registers`
+Access to Modbus Numeric registers (Groups, Analogs, Holding).
+- **Groups**: `.get_group_input(idx)`, `.get_group_output(idx)`
+- **Analogs**: `.get_analog_input(idx)`, `.get_analog_output(idx)`
+- **Holding Data**: `.read_holding_register(address, data_type="int16"|"int32"|"real")`
