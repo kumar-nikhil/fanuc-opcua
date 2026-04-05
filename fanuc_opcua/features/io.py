@@ -12,46 +12,58 @@ class IO:
         self._client = client
 
     async def _read_discrete_input_array(self):
-        """Reads the entire DiscreteInput array."""
         node = self._client.get_node(ModbusNodes.DISCRETE_INPUT)
         return await node.read_value()
 
     async def _read_coils_array(self):
-        """Reads the entire Coils array."""
         node = self._client.get_node(ModbusNodes.COILS)
         return await node.read_value()
 
-    async def get_digital_input(self, index: int) -> bool:
-        """
-        Reads a Digital Input (DI).
-        Index parameter is 1-based (DI[1] -> index 1)
-        """
-        if index < 1 or index > 10000:
-            raise ValueError("DI index must be between 1 and 10000.")
-        
-        # Modbus address for DI is 1~10000, 0-based array index is index - 1
+    async def _get_discrete_bit(self, offset: int, index: int) -> bool:
         arr = await self._read_discrete_input_array()
-        return bool(arr[index - 1])
+        return bool(arr[(offset - 1) + (index - 1)])
 
-    async def get_digital_output(self, index: int) -> bool:
-        """
-        Reads a Digital Output (DO).
-        Index parameter is 1-based (DO[1] -> index 1)
-        """
-        if index < 1 or index > 10000:
-            raise ValueError("DO index must be between 1 and 10000.")
-        
-        # Modbus address for DO is 1~10000, 0-based array index is index - 1
+    async def _get_coil_bit(self, offset: int, index: int) -> bool:
         arr = await self._read_coils_array()
-        return bool(arr[index - 1])
+        return bool(arr[(offset - 1) + (index - 1)])
 
-    # Note: Setting individual bits in an OPC UA array can be tricky if
-    # the server doesn't support 'IndexRange' writes natively. We will 
-    # need to explore robust index_range writes or write the entire array back out.
-    async def set_digital_output(self, index: int, value: bool):
-        """
-        Sets a Digital Output (DO).
-        Index parameter is 1-based (DO[1] -> index 1)
-        """
-        logger.warning("Writing to Coils currently unimplemented while evaluating 'IndexRange' support for NanoUaServer.")
-        pass
+    # --- Discrete Inputs (Read Only) ---
+    async def get_digital_input(self, index: int) -> bool:
+        if index < 1 or index > 10000: raise ValueError("DI index out of bounds")
+        return await self._get_discrete_bit(1, index)
+
+    async def get_robot_input(self, index: int) -> bool:
+        if index < 1 or index > 10000: raise ValueError("RI index out of bounds")
+        return await self._get_discrete_bit(10001, index)
+
+    async def get_uop_input(self, index: int) -> bool:
+        if index < 1 or index > 10000: raise ValueError("UI index out of bounds")
+        return await self._get_discrete_bit(20001, index)
+
+    async def get_uop_output(self, index: int) -> bool:
+        if index < 1 or index > 1000: raise ValueError("UO index out of bounds")
+        return await self._get_discrete_bit(21001, index)
+    
+    async def get_sop_input(self, index: int) -> bool:
+        # SOP input maps SI[0-999], we use 1-based index in our python API conventionally or 0 based?
+        # PDF says 22000 ~ 22999 SOP input SI[0-999]
+        if index < 0 or index > 999: raise ValueError("SI index out of bounds")
+        return await self._get_discrete_bit(22000, index + 1)
+        
+    async def get_sop_output(self, index: int) -> bool:
+        # 23000 ~ 24000 SOP output SO[0-1000]
+        if index < 0 or index > 1000: raise ValueError("SO index out of bounds")
+        return await self._get_discrete_bit(23000, index + 1)
+
+    # --- Coils (Read / Write) ---
+    async def get_digital_output(self, index: int) -> bool:
+        if index < 1 or index > 10000: raise ValueError("DO index out of bounds")
+        return await self._get_coil_bit(1, index)
+
+    async def get_robot_output(self, index: int) -> bool:
+        if index < 1 or index > 10000: raise ValueError("RO index out of bounds")
+        return await self._get_coil_bit(10001, index)
+
+    async def get_flag(self, index: int) -> bool:
+        if index < 1 or index > 10000: raise ValueError("F index out of bounds")
+        return await self._get_coil_bit(20001, index)

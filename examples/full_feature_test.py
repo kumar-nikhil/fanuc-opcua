@@ -44,15 +44,36 @@ async def main():
 
         print("\n--- 4. Discrete I/O (Modbus ns=1) ---")
         try:
-            # Test getting Digital Input 1
             di_1 = await robot.io.get_digital_input(1)
             print(f"DI[1] State:    {di_1}")
             
-            # Test getting Digital Output 1
             do_1 = await robot.io.get_digital_output(1)
             print(f"DO[1] State:    {do_1}")
+            
+            ui_1 = await robot.io.get_uop_input(1)
+            print(f"UI[1] State:    {ui_1}")
+            
+            flag_1 = await robot.io.get_flag(1)
+            print(f"Flag[1] State:  {flag_1}")
         except Exception as e:
-            print(f"I/O Error (May not be mapped in RoboGuide): {e}")
+            print(f"I/O Error: {e}")
+
+        print("\n--- 5. Registers (Modbus ns=1) ---")
+        try:
+            gi_1 = await robot.registers.get_group_input(1)
+            print(f"GI[1] Value:    {gi_1}")
+            
+            # Read Holding Register 1 (Usually R[1] by default Fanuc mapping)
+            r_1 = await robot.registers.read_holding_register(1, "int16")
+            print(f"R[1] (Address 1, int16): {r_1}")
+            
+            # Read Holding Register 11 (If mapped as a REAL in SNPX_ASG)
+            # This requires two registers starting at address 11
+            # r_real = await robot.registers.read_holding_register(11, "real")
+            # print(f"Address 11 (REAL): {r_real}")
+            
+        except Exception as e:
+            print(f"Register Error: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
